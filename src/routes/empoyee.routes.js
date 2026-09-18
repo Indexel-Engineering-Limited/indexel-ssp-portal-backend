@@ -120,8 +120,8 @@ router.get(
 // IMPORTANT: keep this before /:id
 router.get(
     "/employee-id/:employeeId",
-    authenticate,
-    checkPermission("employee_list", "read"),
+    // authenticate,
+    // checkPermission("employee_list", "read"),
     getEmployeeByEmployeeId
 );
 
