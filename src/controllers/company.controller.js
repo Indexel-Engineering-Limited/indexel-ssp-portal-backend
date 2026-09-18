@@ -348,6 +348,7 @@ const getAllContacts = async (req, res) => {
             FROM company_contact_details ccd
             LEFT JOIN company_details cd
                 ON ccd.company_id = cd.company_id
+            WHERE ccd.status = 1
             ORDER BY ccd.created_at DESC
         `);
 
@@ -380,6 +381,7 @@ const getContactsByCompanyId = async (req, res) => {
             `SELECT *
              FROM company_contact_details
              WHERE company_id = ?
+               AND status = 1
              ORDER BY created_at DESC`,
             [company_id.trim().toUpperCase()]
         );
@@ -388,7 +390,7 @@ const getContactsByCompanyId = async (req, res) => {
             return res.status(200).json({
                 success: false,
                 data: [],
-                message: 'No contacts found for this company'
+                message: 'No active contacts found for this company'
             });
         }
 
@@ -728,43 +730,110 @@ const deleteContact = async (req, res) => {
 
         // Fetch old data first
         const [oldRows] = await pool.query(
-            'SELECT * FROM company_contact_details WHERE id = ?',
+            'SELECT * FROM company_contact_details WHERE id = ? AND status = 1',
             [id]
         );
 
         if (oldRows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Contact not found'
+                message: 'Contact not found or already deleted'
             });
         }
 
         const oldData = oldRows[0];
 
-        // Delete contact
+        // Soft delete: change status from 1 to 0
         await pool.query(
-            'DELETE FROM company_contact_details WHERE id = ?',
+            'UPDATE company_contact_details SET status = 0 WHERE id = ?',
             [id]
         );
 
-        // Audit log
+        // Create audit log
         await logAudit(
             'company_contact_details',
             Number(id),
             'DELETE',
             oldData,
-            null,
+            {
+                ...oldData,
+                status: 0
+            },
             req
         );
 
         return res.status(200).json({
             success: true,
             message: 'Contact deleted successfully',
-            data: oldData
+            data: {
+                ...oldData,
+                status: 0
+            }
         });
 
     } catch (error) {
         console.error('Delete Contact Error:', error);
+
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+const restoreContact = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Fetch deleted contact first
+        const [oldRows] = await pool.query(
+            `SELECT *
+             FROM company_contact_details
+             WHERE id = ? AND status = 0`,
+            [id]
+        );
+
+        if (oldRows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Contact restored alredy'
+            });
+        }
+
+        const oldData = oldRows[0];
+
+        // Restore contact: change status from 0 to 1
+        await pool.query(
+            `UPDATE company_contact_details
+             SET status = 1
+             WHERE id = ? AND status = 0`,
+            [id]
+        );
+
+        // New data after restore
+        const newData = {
+            ...oldData,
+            status: 1
+        };
+
+        // Audit log
+        await logAudit(
+            'company_contact_details',
+            Number(id),
+            'RESTORE',
+            oldData,
+            newData,
+            req
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: 'Contact restored successfully',
+            data: newData
+        });
+
+    } catch (error) {
+        console.error('Restore Contact Error:', error);
 
         return res.status(500).json({
             success: false,
@@ -1120,5 +1189,6 @@ module.exports = {
     deleteContact,
     getEmailList,
     createEmailListBulk,
-    deleteEmails
+    deleteEmails,
+    restoreContact
 };

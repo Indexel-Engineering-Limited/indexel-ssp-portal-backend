@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getCompanies, getCompanyById, createCompany, updateCompany, deleteCompany, getAllContacts, getContactsByCompanyId, getContactbyId, createContact, getEmailList, createEmailListBulk,updateContact,deleteContact,deleteEmails } = require('../controllers/company.controller');
+const { getCompanies, getCompanyById, createCompany, updateCompany, deleteCompany, getAllContacts, getContactsByCompanyId, getContactbyId, createContact, getEmailList, createEmailListBulk,updateContact,deleteContact,deleteEmails,restoreContact } = require('../controllers/company.controller');
 const { authenticate, authorizeRoles } = require('../middlewares/auth.middleware');
 const { checkPermission } = require('../middlewares/permission.middleware');
 
@@ -33,6 +33,13 @@ router.delete(
     authenticate,
     checkPermission('contacts', 'write'),
     deleteContact
+);
+router.put(
+    '/contact/restore/:id',
+    authenticate,
+    checkPermission('audit_logs', 'write'),
+    restoreContact
+    
 );
 
 
