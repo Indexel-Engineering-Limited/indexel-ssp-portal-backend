@@ -14,7 +14,8 @@ app.use(
     origin: [
       "http://localhost:5173",
       "http://10.10.1.119:5173",
-       "http://61.2.243.13:5173"
+       "http://61.2.243.13:5173",
+      "https://grey-kangaroo-394580.hostingersite.com"
     ],
     credentials: true,
   })
