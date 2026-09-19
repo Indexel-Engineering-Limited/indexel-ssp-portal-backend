@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
+const path = require('path');
 
 const routes = require('./src/routes');
 const errorHandler = require('./src/middlewares/errorHandler');
@@ -14,17 +15,22 @@ app.use(
     origin: [
       "http://localhost:5173",
       "http://10.10.1.119:5173",
-       "https://ssp.indexel.co.in",
+      "https://ssp.indexel.co.in",
       "https://grey-kangaroo-394580.hostingersite.com"
     ],
     credentials: true,
   })
 );
+
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 app.use(userActivityLogger);
-app.use(express.static("public"));
+
+// Static files
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Routes
 app.use('/api', routes);
 
@@ -33,7 +39,7 @@ app.get('/', (req, res) => {
   res.json({ status: 'API is running' });
 });
 
-// Error handler (must be last)
+// Error handler
 app.use(errorHandler);
 
 module.exports = app;
