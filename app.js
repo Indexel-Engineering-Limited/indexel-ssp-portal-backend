@@ -9,16 +9,15 @@ const userActivityLogger = require('./src/middlewares/userActivityLogger');
 
 const app = express();
 
-// Middleware
 app.use(
   cors({
     origin: [
-      "http://localhost:5173",
-      "http://10.10.1.119:5173",
-      "https://ssp.indexel.co.in",
-      "https://grey-kangaroo-394580.hostingersite.com"
+      'http://localhost:5173',
+      'http://10.10.1.119:5173',
+      'https://ssp.indexel.co.in',
+      'https://grey-kangaroo-394580.hostingersite.com'
     ],
-    credentials: true,
+    credentials: true
   })
 );
 
@@ -28,18 +27,21 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(userActivityLogger);
 
-// Static files
-app.use(express.static(path.join(__dirname, 'public')));
+// IMPORTANT
+const publicPath = path.join(__dirname, 'public');
 
-// Routes
+app.use('/employees', express.static(path.join(publicPath, 'employees')));
+app.use('/qr-codes', express.static(path.join(publicPath, 'qr-codes')));
+
+// Other public files
+app.use(express.static(publicPath));
+
 app.use('/api', routes);
 
-// Health check
 app.get('/', (req, res) => {
   res.json({ status: 'API is running' });
 });
 
-// Error handler
 app.use(errorHandler);
 
 module.exports = app;
