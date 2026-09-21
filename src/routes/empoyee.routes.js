@@ -110,8 +110,8 @@ router.post(
 // Requires employee_list READ permission
 router.get(
     "/",
-    // authenticate,
-    // checkPermission("employee_list", "read"),
+    authenticate,
+    checkPermission("employee_list", "read"),
     getEmployees
 );
 
