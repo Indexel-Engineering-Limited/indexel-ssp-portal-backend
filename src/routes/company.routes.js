@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getCompanies, getCompanyById, createCompany, updateCompany, deleteCompany, getAllContacts, getContactsByCompanyId, getContactbyId, createContact, getEmailList, createEmailListBulk,updateContact,deleteContact,deleteEmails,restoreContact } = require('../controllers/company.controller');
+const { getCompanies, getCompanyById, createCompany, updateCompany, deleteCompany, getAllContacts, getContactsByCompanyId, getContactbyId, createContact, getEmailList, createEmailListBulk,updateContact,deleteContact,deleteEmails,restoreContact,updateEmailType} = require('../controllers/company.controller');
 const { authenticate, authorizeRoles } = require('../middlewares/auth.middleware');
 const { checkPermission } = require('../middlewares/permission.middleware');
 
@@ -46,5 +46,6 @@ router.put(
 
 router.post('/emails/bulk', authenticate, checkPermission('email_list', 'write'), createEmailListBulk);
 router.delete('/email/:id',authenticate,checkPermission('email_list', 'write'),deleteEmails);
+router.put('/emails/:id/type',authenticate,checkPermission('email_list', 'write'), updateEmailType);
 
 module.exports = router;

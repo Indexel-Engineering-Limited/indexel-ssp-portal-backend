@@ -1171,6 +1171,102 @@ const createEmailListBulk = async (req, res) => {
     }
 };
 
+const updateEmailType = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { type } = req.body;
+
+        // Validate ID
+        if (!id) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email ID is required'
+            });
+        }
+
+        // Validate type
+        const allowedTypes = ['principal', 'customer', 'vendor'];
+
+        if (!type) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email type is required'
+            });
+        }
+
+        if (!allowedTypes.includes(type)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid email type. Allowed values: principal, customer, vendor'
+            });
+        }
+
+        // Fetch existing email
+        const [existingRows] = await pool.query(
+            `SELECT * FROM email_list WHERE id = ?`,
+            [id]
+        );
+
+        if (existingRows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Email not found'
+            });
+        }
+
+        const oldData = existingRows[0];
+
+        // Check if type is already the same
+        if (oldData.type === type) {
+            return res.status(200).json({
+                success: true,
+                message: 'Email type is already set to this value',
+                data: oldData
+            });
+        }
+
+        // Update email type
+        await pool.query(
+            `UPDATE email_list 
+             SET type = ?
+             WHERE id = ?`,
+            [type, id]
+        );
+
+        // Fetch updated data
+        const [updatedRows] = await pool.query(
+            `SELECT * FROM email_list WHERE id = ?`,
+            [id]
+        );
+
+        const newData = updatedRows[0];
+
+        // Audit log
+        await logAudit(
+            'email_list',
+            Number(id),
+            'UPDATE',
+            oldData,
+            newData,
+            req
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: 'Email type updated successfully',
+            data: newData
+        });
+
+    } catch (error) {
+        console.error('Update Email Type Error:', error);
+
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 // ============================================================
 // EXPORTS
 // ============================================================
@@ -1190,5 +1286,6 @@ module.exports = {
     getEmailList,
     createEmailListBulk,
     deleteEmails,
-    restoreContact
+    restoreContact,
+    updateEmailType
 };
