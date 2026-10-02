@@ -59,6 +59,7 @@ exports.createOrder = async (req, res) => {
             new_product_customer,
 
             margin_percent,
+            net_incentive,
 
             remarks
         } = req.body;
@@ -119,17 +120,7 @@ exports.createOrder = async (req, res) => {
 
 
         // CALCULATE INCENTIVE
-        let netIncentive = 0;
-
-        if (
-            po_value_after_sharing !== undefined &&
-            po_value_after_sharing !== null &&
-            marginMultiplier !== null
-        ) {
-            netIncentive =
-                Number(po_value_after_sharing) *
-                marginMultiplier;
-        }
+       
 
 
         const [result] = await pool.query(
@@ -184,7 +175,7 @@ exports.createOrder = async (req, res) => {
                 calculatedMargin,
                 marginMultiplier,
 
-                netIncentive,
+                net_incentive,
 
                 remarks || null,
 
@@ -365,6 +356,7 @@ exports.updateOrder = async (req, res) => {
             po_value_after_sharing,
 
             new_product_customer,
+            net_incentive,
 
             margin_percent,
 
@@ -395,9 +387,7 @@ exports.updateOrder = async (req, res) => {
             );
 
 
-        const netIncentive =
-            Number(po_value_after_sharing || 0) *
-            marginMultiplier;
+       
 
 
         await pool.query(
@@ -451,7 +441,7 @@ exports.updateOrder = async (req, res) => {
                 margin_percent || 0,
                 marginMultiplier,
 
-                netIncentive,
+                net_incentive,
 
                 remarks || null,
                 status || 'DRAFT',
@@ -480,7 +470,7 @@ exports.updateOrder = async (req, res) => {
                     marginMultiplier,
 
                 net_incentive:
-                    Number(netIncentive.toFixed(2))
+                    Number(net_incentive.toFixed(2))
             }
         });
 
