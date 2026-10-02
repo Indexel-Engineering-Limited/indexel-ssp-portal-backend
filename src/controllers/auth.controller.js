@@ -12,6 +12,7 @@ const toPublicUser = (user) => ({
   name: user.name,
   email_id: user.email_id,
   role: user.role,
+  employee_id:user.employee_id,
   created_at: user.created_at,
   updated_at: user.updated_at,
 });
@@ -32,9 +33,19 @@ const createToken = (user) => {
 
 const register = async (req, res, next) => {
   try {
-    const { user_name, name, email_id, password } = req.body;
+    const {
+      user_name,
+      name,
+      email_id,
+      password,
+      employee_id
+    } = req.body;
 
-    if (![user_name, name, email_id, password].every((value) => typeof value === 'string' && value.trim())) {
+    if (
+      ![user_name, name, email_id, password].every(
+        (value) => typeof value === 'string' && value.trim()
+      )
+    ) {
       return res.status(400).json({
         success: false,
         message: 'user_name, name, email_id, and password are required',
@@ -42,32 +53,109 @@ const register = async (req, res, next) => {
     }
 
     if (password.length < 8) {
-      return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters',
+      });
+    }
+
+    // Validate employee_id if provided
+    if (
+      employee_id !== undefined &&
+      employee_id !== null &&
+      employee_id !== '' &&
+      !Number.isInteger(Number(employee_id))
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'employee_id must be a valid number',
+      });
     }
 
     const normalizedUserName = user_name.trim();
     const normalizedName = name.trim();
     const normalizedEmail = email_id.trim().toLowerCase();
-    // Role changes are deliberately limited to the administrator-only endpoint.
+    const normalizedEmployeeId =
+      employee_id !== undefined &&
+      employee_id !== null &&
+      employee_id !== ''
+        ? Number(employee_id)
+        : null;
+
     const normalizedRole = 'USER';
+
+    // Check username/email
     const [existingUsers] = await pool.query(
       'SELECT id FROM users WHERE user_name = ? OR email_id = ?',
       [normalizedUserName, normalizedEmail]
     );
 
     if (existingUsers.length) {
-      return res.status(409).json({ success: false, message: 'Username or email is already registered' });
+      return res.status(409).json({
+        success: false,
+        message: 'Username or email is already registered',
+      });
+    }
+
+    // Check employee exists
+    if (normalizedEmployeeId !== null) {
+      const [employees] = await pool.query(
+        'SELECT id FROM employees WHERE employee_id = ?',
+        [normalizedEmployeeId]
+      );
+
+      if (!employees.length) {
+        return res.status(404).json({
+          success: false,
+          message: 'Employee not found',
+        });
+      }
+
+      // Optional: make sure employee doesn't already have a user
+      const [employeeUsers] = await pool.query(
+        'SELECT id FROM users WHERE employee_id = ?',
+        [normalizedEmployeeId]
+      );
+
+      if (employeeUsers.length) {
+        return res.status(409).json({
+          success: false,
+          message: 'A user account already exists for this employee',
+        });
+      }
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
+
     const [result] = await pool.query(
-      'INSERT INTO users (user_name, name, email_id, password, role) VALUES (?, ?, ?, ?, ?)',
-      [normalizedUserName, normalizedName, normalizedEmail, passwordHash, normalizedRole]
+      `INSERT INTO users
+        (user_name, name, email_id, password, role, employee_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        normalizedUserName,
+        normalizedName,
+        normalizedEmail,
+        passwordHash,
+        normalizedRole,
+        normalizedEmployeeId,
+      ]
     );
+
     const [users] = await pool.query(
-      'SELECT id, user_name, name, email_id, role, created_at, updated_at FROM users WHERE id = ?',
+      `SELECT
+        id,
+        employee_id,
+        user_name,
+        name,
+        email_id,
+        role,
+        created_at,
+        updated_at
+       FROM users
+       WHERE id = ?`,
       [result.insertId]
     );
+
     const user = users[0];
 
     return res.status(201).json({
@@ -226,7 +314,7 @@ const verify = async (req, res) => {
 const getUsers = async (req, res, next) => {
   try {
     const [users] = await pool.query(
-      'SELECT id, user_name, name, email_id, role, created_at, updated_at FROM users ORDER BY created_at DESC'
+      'SELECT id, user_name, name, email_id,employee_id, role, created_at, updated_at FROM users ORDER BY created_at DESC'
     );
     return res.status(200).json({ success: true, data: users });
   } catch (error) {
