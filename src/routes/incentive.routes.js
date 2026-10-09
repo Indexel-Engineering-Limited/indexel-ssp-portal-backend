@@ -99,6 +99,11 @@ router.get(
     orderController.getOrderById
 );
 
+router.get(
+  '/employee-order/:salesperson_id',
+  orderController.getOrdersBySalesperson
+);
+
 router.put(
     '/orders/:id',
     orderController.updateOrder
@@ -109,6 +114,11 @@ router.put(
 router.post(
     '/orders/calculate',
     orderController.calculateOrder
+);
+
+router.patch(
+  "/orders/freeze",
+  orderController.freezeOrders
 );
 
 const targetController =

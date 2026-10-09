@@ -194,7 +194,7 @@ exports.createOrder = async (req, res) => {
                 po_value,
                 margin_percent: calculatedMargin,
                 margin_multiplier: marginMultiplier,
-                net_incentive: netIncentive
+                net_incentive: net_incentive
             }
         });
 
@@ -207,7 +207,7 @@ exports.createOrder = async (req, res) => {
                 id: result.insertId,
                 margin_percent: calculatedMargin,
                 margin_multiplier: marginMultiplier,
-                net_incentive: netIncentive
+                net_incentive: net_incentive
             }
         });
 
@@ -470,7 +470,7 @@ exports.updateOrder = async (req, res) => {
                     marginMultiplier,
 
                 net_incentive:
-                    Number(net_incentive.toFixed(2))
+                    Number(net_incentive)
             }
         });
 
@@ -552,4 +552,108 @@ exports.calculateOrder = async (req, res) => {
             error: error.message
         });
     }
+};
+
+exports.getOrdersBySalesperson = async (req, res) => {
+  try {
+    const { salesperson_id } = req.params;
+
+    if (!salesperson_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'salesperson_id is required',
+      });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT
+          io.*,
+          s.scheme_name,
+          s.scheme_code,
+          s.scheme_type,
+          s.financial_year
+       FROM incentive_orders io
+       LEFT JOIN incentive_schemes s
+          ON s.id = io.scheme_id
+       WHERE io.salesperson_id = ?
+       ORDER BY io.id DESC`,
+      [salesperson_id]
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: rows,
+    });
+
+  } catch (error) {
+    console.error('getOrdersBySalesperson error:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch salesperson orders',
+      error: error.message,
+    });
+  }
+};
+
+
+// FREEZE ORDERS
+exports.freezeOrders = async (req, res) => {
+  try {
+    const { order_ids } = req.body;
+
+    if (
+      !Array.isArray(order_ids) ||
+      order_ids.length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "order_ids must be a non-empty array",
+      });
+    }
+
+    const ids = [...new Set(order_ids.map(Number))];
+
+    if (ids.some((id) => !Number.isInteger(id) || id <= 0)) {
+      return res.status(400).json({
+        success: false,
+        message: "All order_ids must be valid positive integers",
+      });
+    }
+
+    const placeholders = ids.map(() => "?").join(", ");
+
+    const [result] = await pool.query(
+      `UPDATE incentive_orders
+       SET isEditable = 0
+       WHERE id IN (${placeholders})
+         AND isEditable = 1`,
+      ids
+    );
+
+    await logAudit({
+      userId: req.user?.id,
+      action: "UPDATE",
+      module: "INCENTIVE_ORDER",
+      details: {
+        order_ids: ids,
+        isEditable: 0,
+        affectedRows: result.affectedRows,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Orders frozen successfully",
+      affectedRows: result.affectedRows,
+    });
+  } catch (error) {
+    console.error("freezeOrders error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to freeze orders",
+      error: error.message,
+    });
+  }
 };
