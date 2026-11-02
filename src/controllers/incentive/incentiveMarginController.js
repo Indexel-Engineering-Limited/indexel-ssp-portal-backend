@@ -14,7 +14,7 @@ exports.createMarginRule = async (req, res) => {
             multiplier,
             sequence
         } = req.body;
-        console.log(req.body)
+        
 
         if (
             multiplier === undefined

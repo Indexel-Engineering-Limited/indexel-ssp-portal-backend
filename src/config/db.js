@@ -89,7 +89,8 @@ const connectDB = async () => {
     ('email_list', 'Email List', 'mail', 'Manage email lists'),
     ('bulk_upload', 'Bulk Upload', 'upload_file', 'Upload data in bulk'),
     ('user_access', 'User Access', 'manage_accounts', 'Manage user permissions'),
-    ('user_logs', 'User Logs', 'history', 'View audit logs and user activity')
+    ('user_logs', 'User Logs', 'history', 'View audit logs and user activity'),
+    ('service_calls', 'Service Call Report', 'support_agent', 'Manage service call reports')
   `);
 
   connection.release();
