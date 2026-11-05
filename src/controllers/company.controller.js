@@ -517,29 +517,61 @@ const createContact = async (req, res) => {
             ]
         );
 
-        // Add email to email_list
+        // Add email to email_list with type customer
         if (contactEmail) {
-            await pool.query(
-                `
-                INSERT IGNORE INTO email_list (email)
-                VALUES (?)
-                `,
+            const [existingEmails] = await pool.query(
+                'SELECT * FROM email_list WHERE email = ?',
                 [contactEmail]
             );
+
+            if (existingEmails.length === 0) {
+                const [emailResult] = await pool.query(
+                    `
+                    INSERT INTO email_list (email, type)
+                    VALUES (?, ?)
+                    `,
+                    [contactEmail, 'customer']
+                );
+
+                const [emailRows] = await pool.query(
+                    'SELECT * FROM email_list WHERE id = ?',
+                    [emailResult.insertId]
+                );
+
+                await logAudit('email_list', emailResult.insertId, 'INSERT', null, emailRows[0], req);
+            } else if (!existingEmails[0].type) {
+                // Email already exists without a type - set it to customer
+                await pool.query(
+                    'UPDATE email_list SET type = ? WHERE id = ?',
+                    ['customer', existingEmails[0].id]
+                );
+
+                await logAudit(
+                    'email_list',
+                    existingEmails[0].id,
+                    'UPDATE',
+                    existingEmails[0],
+                    { ...existingEmails[0], type: 'customer' },
+                    req
+                );
+            }
         }
+
+        // Fetch created contact
+        const [newRows] = await pool.query(
+            'SELECT * FROM company_contact_details WHERE id = ?',
+            [result.insertId]
+        );
+
+        const newContact = newRows[0];
+
+        // Log audit: INSERT
+        await logAudit('company_contact_details', result.insertId, 'INSERT', null, newContact, req);
 
         return res.status(201).json({
             success: true,
             message: "Contact created successfully",
-            data: {
-                id: result.insertId,
-                company_id: companyId,
-                person_name: personName,
-                designation: designation || null,
-                contact_number: contact_number || null,
-                department: department || null,
-                email: contactEmail
-            }
+            data: newContact
         });
 
     } catch (error) {
