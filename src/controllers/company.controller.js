@@ -566,8 +566,19 @@ const updateContact = async (req, res) => {
             designation,
             contact_number,
             email,
-            department
+            department,
+            type
         } = req.body;
+
+        // Validate email type (used for email_list)
+        const allowedTypes = ['principal', 'customer', 'vendor'];
+
+        if (type && !allowedTypes.includes(type)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid email type. Allowed values: principal, customer, vendor'
+            });
+        }
 
         // Fetch old data first
         const [oldRows] = await pool.query(
@@ -677,13 +688,28 @@ const updateContact = async (req, res) => {
             values
         );
 
-        // Add updated email to email_list
+        // Add updated email to email_list with type (defaults to customer)
         if (email !== undefined && contactEmail) {
-            await pool.query(
-                `INSERT IGNORE INTO email_list (email)
-                 VALUES (?)`,
+            const [emailRows] = await pool.query(
+                'SELECT id, type FROM email_list WHERE email = ?',
                 [contactEmail]
             );
+
+            if (emailRows.length === 0) {
+                await pool.query(
+                    `INSERT INTO email_list (email, type)
+                     VALUES (?, ?)`,
+                    [contactEmail, type || 'customer']
+                );
+            } else if (type || !emailRows[0].type) {
+                // Overwrite only when a type is sent, or fill a missing type
+                await pool.query(
+                    `UPDATE email_list
+                     SET type = ?
+                     WHERE id = ?`,
+                    [type || 'customer', emailRows[0].id]
+                );
+            }
         }
 
         // Fetch updated data
